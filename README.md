@@ -2,6 +2,16 @@
 
 A [Linear](https://linear.app) notification manager for your terminal. Built for [Omarchy](https://omarchy.org).
 
+Built with [Go](https://go.dev), [Bubble Tea](https://github.com/charmbracelet/bubbletea), and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+
+### Interactive TUI
+
+![TUI](images/tui.gif)
+
+### Waybar module
+
+![Waybar](images/waybar.png)
+
 ## Features
 
 - Split-pane TUI: notification list on the left, detail on the right
