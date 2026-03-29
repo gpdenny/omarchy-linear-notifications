@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -20,6 +21,11 @@ type model struct {
 	loading       bool
 	err           error
 	openURL       string
+	createForm    *createForm
+	teamsCache    []TeamInfo
+	viewerID      string
+	flash         string
+	createdIssue  *CreateIssueResult
 }
 
 type notificationsMsg struct {
@@ -35,6 +41,12 @@ type markReadMsg struct {
 
 type markAllReadMsg struct {
 	err error
+}
+
+type teamsMsg struct {
+	teams    []TeamInfo
+	viewerID string
+	err      error
 }
 
 func newModel(client *Client) model {
@@ -60,6 +72,71 @@ func (m model) fetchNotifications() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle post-create modal
+	if m.createdIssue != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			return m, nil
+		case tea.KeyPressMsg:
+			switch msg.String() {
+			case "o":
+				url := m.createdIssue.URL
+				m.flash = "Created " + m.createdIssue.Identifier
+				m.createdIssue = nil
+				m.openURL = url
+				return m, tea.Quit
+			case "u":
+				_ = copyToClipboard(m.createdIssue.URL)
+				m.flash = "Copied URL"
+				m.createdIssue = nil
+			case "y":
+				_ = copyToClipboard(m.createdIssue.Identifier)
+				m.flash = "Copied " + m.createdIssue.Identifier
+				m.createdIssue = nil
+			case "b":
+				_ = copyToClipboard(m.createdIssue.BranchName)
+				m.flash = "Copied branch name"
+				m.createdIssue = nil
+			case "enter", "esc", "q":
+				m.flash = "Created " + m.createdIssue.Identifier
+				m.createdIssue = nil
+			}
+		}
+		return m, nil
+	}
+
+	// Handle create form overlay
+	if m.createForm != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			return m, nil
+		case submitCreateMsg:
+			client := m.client
+			viewerID := m.viewerID
+			return m, func() tea.Msg {
+				result, err := client.CreateIssue(msg.title, msg.desc, msg.teamID, msg.stateID, viewerID)
+				return createResultMsg{result: result, err: err}
+			}
+		case createResultMsg:
+			if msg.err != nil {
+				m.createForm.submitting = false
+				m.createForm.err = msg.err
+				return m, nil
+			}
+			m.createForm = nil
+			m.createdIssue = msg.result
+			return m, nil
+		default:
+			updated, cmd := m.createForm.Update(msg)
+			m.createForm = updated
+			return m, cmd
+		}
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -80,7 +157,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case markAllReadMsg:
 		// State already updated optimistically on keypress
 
+	case teamsMsg:
+		if msg.err != nil {
+			m.flash = "Failed to load teams"
+			return m, nil
+		}
+		m.teamsCache = msg.teams
+		m.viewerID = msg.viewerID
+		m.createForm = newCreateForm(m.teamsCache)
+		return m, nil
+
 	case tea.KeyPressMsg:
+		m.flash = ""
 		if m.loading {
 			return m, nil
 		}
@@ -134,6 +222,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return markAllReadMsg{}
 				}
 			}
+		case "c":
+			if m.client == nil {
+				break
+			}
+			if m.teamsCache != nil {
+				m.createForm = newCreateForm(m.teamsCache)
+				return m, nil
+			}
+			client := m.client
+			return m, func() tea.Msg {
+				teams, err := client.FetchTeams()
+				if err != nil {
+					return teamsMsg{err: err}
+				}
+				viewerID, _ := client.FetchViewerID()
+				return teamsMsg{teams: teams, viewerID: viewerID}
+			}
 		}
 	}
 	return m, nil
@@ -166,6 +271,16 @@ func (m model) View() tea.View {
 
 	if m.width == 0 || m.height == 0 {
 		v.SetContent("")
+		return v
+	}
+
+	if m.createdIssue != nil {
+		v.SetContent(renderCreatedModal(m.createdIssue, m.width, m.height))
+		return v
+	}
+
+	if m.createForm != nil {
+		v.SetContent(m.createForm.View(m.width, m.height))
 		return v
 	}
 
@@ -244,7 +359,9 @@ func (m model) renderTopBorder(w, leftW, rightW int) string {
 	titleText := " Linear Notifications "
 	unread := m.unreadCount
 	var statusText string
-	if unread > 0 {
+	if m.flash != "" {
+		statusText = " " + m.flash + " "
+	} else if unread > 0 {
 		statusText = fmt.Sprintf(" %d unread ", unread)
 	}
 
@@ -434,6 +551,7 @@ func renderHelpContent() string {
 		{"enter", "open"},
 		{"r", "mark read"},
 		{"R", "mark all read"},
+		{"c", "create"},
 		{"q", "quit"},
 	}
 	parts := make([]string, len(keys))
@@ -444,6 +562,11 @@ func renderHelpContent() string {
 }
 
 // --- Helpers ---
+
+func copyToClipboard(text string) error {
+	cmd := exec.Command("wl-copy", text)
+	return cmd.Run()
+}
 
 func countUnread(ns []Notification) int {
 	c := 0

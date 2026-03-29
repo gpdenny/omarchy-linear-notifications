@@ -255,3 +255,118 @@ func (c *Client) MarkAsRead(id string) error {
 	})
 	return err
 }
+
+type TeamInfo struct {
+	ID     string          `json:"id"`
+	Name   string          `json:"name"`
+	Key    string          `json:"key"`
+	States *WorkflowStates `json:"states"`
+}
+
+type WorkflowStates struct {
+	Nodes []WorkflowState `json:"nodes"`
+}
+
+type WorkflowState struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// DefaultStateID returns the best default state for issue creation:
+// triage > backlog > unstarted, or empty string if none found.
+func (t *TeamInfo) DefaultStateID() string {
+	if t.States == nil {
+		return ""
+	}
+	preference := []string{"triage", "backlog", "unstarted"}
+	for _, pref := range preference {
+		for _, s := range t.States.Nodes {
+			if s.Type == pref {
+				return s.ID
+			}
+		}
+	}
+	return ""
+}
+
+const teamsQuery = `query {
+  teams { nodes { id name key states { nodes { id name type } } } }
+}`
+
+func (c *Client) FetchTeams() ([]TeamInfo, error) {
+	data, err := c.do(gqlRequest{Query: teamsQuery})
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		Teams struct {
+			Nodes []TeamInfo `json:"nodes"`
+		} `json:"teams"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	return result.Teams.Nodes, nil
+}
+
+func (c *Client) FetchViewerID() (string, error) {
+	data, err := c.do(gqlRequest{Query: `query { viewer { id } }`})
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		Viewer struct {
+			ID string `json:"id"`
+		} `json:"viewer"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", err
+	}
+	return result.Viewer.ID, nil
+}
+
+type CreateIssueResult struct {
+	Identifier string `json:"identifier"`
+	URL        string `json:"url"`
+	BranchName string `json:"branchName"`
+}
+
+func (c *Client) CreateIssue(title, description, teamID, stateID, assigneeID string) (*CreateIssueResult, error) {
+	query := `mutation($title: String!, $teamId: String!, $stateId: String!, $description: String, $assigneeId: String) {
+		issueCreate(input: { title: $title, teamId: $teamId, stateId: $stateId, description: $description, assigneeId: $assigneeId }) {
+			success
+			issue { identifier url branchName }
+		}
+	}`
+	vars := map[string]any{
+		"title":  title,
+		"teamId": teamID,
+	}
+	if stateID != "" {
+		vars["stateId"] = stateID
+	}
+	if description != "" {
+		vars["description"] = description
+	}
+	if assigneeID != "" {
+		vars["assigneeId"] = assigneeID
+	}
+	data, err := c.do(gqlRequest{Query: query, Variables: vars})
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		IssueCreate struct {
+			Success bool               `json:"success"`
+			Issue   *CreateIssueResult `json:"issue"`
+		} `json:"issueCreate"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	if !result.IssueCreate.Success || result.IssueCreate.Issue == nil {
+		return nil, fmt.Errorf("issue creation failed")
+	}
+	return result.IssueCreate.Issue, nil
+}

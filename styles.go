@@ -122,4 +122,51 @@ var (
 
 	border = lipgloss.NewStyle().
 		Foreground(borderColor)
+
+	// Create form styles
+	formTitle = lipgloss.NewStyle().
+			Foreground(colorBase).
+			Background(colorMauve).
+			Bold(true).
+			Padding(0, 1)
+
+	formLabel = lipgloss.NewStyle().
+			Foreground(colorOverlay0)
+
+	formLabelFocused = lipgloss.NewStyle().
+				Foreground(colorMauve).
+				Bold(true)
+
+	formInputBorder = lipgloss.NewStyle().
+			Foreground(colorSurface1)
+
+	formInputBorderFocused = lipgloss.NewStyle().
+				Foreground(colorMauve)
+
+	formCursor = lipgloss.NewStyle().
+			Foreground(colorBase).
+			Background(colorText)
+
+	formTeam = lipgloss.NewStyle().
+			Foreground(colorSubtext0)
+
+	formTeamFocused = lipgloss.NewStyle().
+			Foreground(colorText).
+			Bold(true)
+
+	formArrow = lipgloss.NewStyle().
+			Foreground(colorOverlay0)
+
+	formError = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#F38BA8"))
+
+	formHelpKey = lipgloss.NewStyle().
+			Foreground(colorText).
+			Bold(true)
+
+	formHelpDesc = lipgloss.NewStyle().
+			Foreground(colorOverlay0)
+
+	formHelpSep = lipgloss.NewStyle().
+			Foreground(colorSurface1)
 )
