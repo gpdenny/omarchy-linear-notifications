@@ -635,6 +635,7 @@ func humanizeType(t string) string {
 		"issueCreated":        "Issue created",
 		"issueUpdated":        "Issue updated",
 		"projectUpdate":       "Project update",
+		"pullRequestReviewRequested": "Review requested",
 		"pullRequestCommented": "New comment",
 		"projectUpdatePrompt": "Project update reminder",
 		"issueSlaHighRisk": "SLA high risk",

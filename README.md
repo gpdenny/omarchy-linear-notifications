@@ -65,6 +65,8 @@ For Waybar to see the variable, set it in your graphical session:
 - **Hyprland**: `env = LINEAR_API_KEY,lin_api_...` in `~/.config/hypr/envs.conf`
 - **systemd**: `LINEAR_API_KEY=lin_api_...` in `~/.config/environment.d/linear.conf`
 
+(There are obviously better ways to do this than writing your secrets to disk, use your preferred method!)
+
 ### Waybar
 
 Add to `~/.config/waybar/config.jsonc`:
