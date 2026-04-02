@@ -1,0 +1,12 @@
+# https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+title = "omarchy-linear-notifications gitleaks config"
+
+[extend]
+# Use the default ruleset shipped with gitleaks as the base.
+useDefault = true
+
+[[rules]]
+id = "linear-api-key"
+description = "Linear API key"
+regex = '''lin_api_[0-9a-zA-Z]{40}'''
+tags = ["linear", "api-key"]

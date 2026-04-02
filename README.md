@@ -44,7 +44,7 @@ go build -o ~/.local/bin/omarchy-linear-notifications .
 
 ### API key
 
-Create a personal API key at [Linear Settings → API](https://linear.app/settings/api) with **read and write** scope.
+Create a `personal API key` at [Linear Settings → Security & access](https://linear.app/thanksben/settings/account/security) with **read and write** scope.
 
 Provide it via environment variable or file (checked in order):
 
@@ -108,6 +108,18 @@ omarchy-linear-notifications --waybar
 | `r` | Mark as read |
 | `R` | Mark all as read |
 | `q` / `Esc` | Quit |
+
+## Contributing
+
+### Secret scanning
+
+[gitleaks](https://github.com/gitleaks/gitleaks) runs as a pre-commit hook via the [pre-commit](https://pre-commit.com) framework, which manages the gitleaks install automatically.
+
+Install [pre-commit](https://pre-commit.com/#install) then run once after cloning:
+
+```bash
+pre-commit install
+```
 
 ## License
 
